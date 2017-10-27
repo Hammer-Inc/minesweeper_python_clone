@@ -58,7 +58,7 @@ class Manager:
     def update(self):
         if self.Over:
             self.glo.display.queue(
-                pygame.transform.scale(self.Surface, (self.scr_dim)), self.rect)
+                pygame.transform.scale(self.Surface, self.scr_dim), self.rect)
             return
         for event in pygame.event.get(pygame.MOUSEBUTTONUP):
             pygame.event.post(event)
@@ -66,8 +66,8 @@ class Manager:
             if not target in self.lstNodes: return
             if event.button == 1:
                 if not self.boolactive:
-                    Node.reqbombs = self.settings['bombs']
-                    Node.reqNodes = len(self.lstNodes)
+                    Node.req_bombs = self.settings['bombs']
+                    Node.req_nodes = len(self.lstNodes)
                     self.lstNodes[target].setup(True)
                     self.lstNodes[target].reveal()
                     self.boolactive = True
@@ -81,7 +81,7 @@ class Manager:
         if self.Over:
             del self.lstNodes
 
-    def GameOver(self, win=False):
+    def gameover(self, win=False):
         for x in self.lstNodes:
             t = self.lstNodes[x]
             if t.isbomb:
@@ -96,24 +96,24 @@ class Manager:
         self.Surface.blit(*self.glo.display.render(endtext, Colour, "nodefont",
                                                    centerx=self.Surface.get_width() / 2,
                                                    centery=self.Surface.get_height() / 2))
-        Node.activenodes = 0
-        Node.bombnodes = 0
-        Node.safebombs = 0
-        Node.reqbombs = 0
-        Node.badflags = 0
-        Node.reqNodes = 0
-        Node.revNodes = 0
+        Node.active_nodes = 0
+        Node.bomb_nodes = 0
+        Node.safe_bombs = 0
+        Node.req_bombs = 0
+        Node.bad_flags = 0
+        Node.req_nodes = 0
+        Node.rev_nodes = 0
 
 
 @ConfigGLO
-class Node():
-    activenodes = 0
-    bombnodes = 0
-    safebombs = 0
-    reqbombs = 0
-    badflags = 0
-    reqNodes = 0
-    revNodes = 0
+class Node:
+    active_nodes = 0
+    bomb_nodes = 0
+    safe_bombs = 0
+    req_bombs = 0
+    bad_flags = 0
+    req_nodes = 0
+    rev_nodes = 0
 
     def __init__(self, parent, pos):
         self.parent = parent
@@ -122,8 +122,8 @@ class Node():
                                 1 + pos[1] * (self.glo.dsp_render_res + 1),
                                 self.glo.dsp_render_res,
                                 self.glo.dsp_render_res)
-        self.issetup = False
-        self.isbomb = None
+        self.is_setup = False
+        self.is_bomb = None
         self.isrevealed = False
         self.flagged = False
         self.Surface = pygame.Surface(self.rect.size)
@@ -135,23 +135,23 @@ class Node():
     def update(self):
         return self.Surface, self.rect
 
-    def setup(self, IsStart=False):
-        if self.issetup: return
-        if self.isbomb is None and not self.reqbombs == self.bombnodes:
-            self.isbomb = random.randint(0,
-                                         self.reqNodes - self.activenodes) <= self.reqbombs - self.bombnodes + 1
-        if self.isbomb:
-            Node.bombnodes += 1
-        # print self.bombnodes,self.reqbombs
-        self.issetup = True
-        Node.activenodes += 1
-        if IsStart:
+    def setup(self, is_start=False):
+        if self.is_setup: return
+        if self.is_bomb is None and not self.req_bombs == self.bomb_nodes:
+            self.is_bomb = random.randint(0,
+                                          self.req_nodes - self.active_nodes) <= self.req_bombs - self.bomb_nodes + 1
+        if self.is_bomb:
+            Node.bomb_nodes += 1
+        self.is_setup = True
+        Node.active_nodes += 1
+        if is_start:
             for x in xrange(-1, 2):
                 for y in xrange(-1, 2):
                     target = self.pos[0] + x, self.pos[1] + y
-                    if not target in self.parent.lstNodes: continue
+                    if target not in self.parent.lstNodes:
+                        continue
                     target = self.parent.lstNodes[target]
-                    target.isbomb = False
+                    target.is_bomb = False
         for x in xrange(-1, 2):
             for y in xrange(-1, 2):
                 target = self.pos[0] + x, self.pos[1] + y
@@ -162,7 +162,7 @@ class Node():
     def reveal(self, eg=False):
         if self.flagged:
             if not eg: return
-            if self.isbomb:
+            if self.is_bomb:
                 self.Surface.fill((0, 0, 255))
                 self.Surface.blit(
                     *self.glo.display.render("F", "red", "nodefont",
@@ -170,26 +170,25 @@ class Node():
                                              centerx=self.glo.dsp_render_res / 2))
                 self.parent.queueref(self)
                 return
-        if self.isbomb:
+        if self.is_bomb:
             self.Surface.fill((255, 0, 0))
             self.parent.queueref(self)
-            if not eg: return self.parent.GameOver()
+            if not eg: return self.parent.gameover()
             return
         nearby = 0
         self.isrevealed = True
-        Node.revNodes += 1
-        if self.revNodes + self.safebombs == self.reqNodes:
-            self.parent.GameOver(True)
+        Node.rev_nodes += 1
+        if self.rev_nodes + self.safe_bombs == self.req_nodes:
+            self.parent.gameover(True)
         for x in xrange(-1, 2):
             for y in xrange(-1, 2):
                 # print x,y
                 if x == 0 and y == 0: continue
                 targetc = self.pos[0] + x, self.pos[1] + y
-                # print targetc
                 if targetc in self.parent.lstNodes:
                     target = self.parent.lstNodes[targetc]
-                    #	print 'OrNode:',self,'TarNode:',target
-                    if target.isbomb: nearby += 1
+                    if target.isbomb:
+                        nearby += 1
         if not nearby > 0:
             for x in xrange(-1, 2):
                 for y in xrange(-1, 2):
@@ -210,10 +209,10 @@ class Node():
         if self.isrevealed: return
         if not self.flagged:
             self.flagged = True
-            if self.isbomb:
-                Node.safebombs += 1
+            if self.is_bomb:
+                Node.safe_bombs += 1
             else:
-                Node.badflags += 1
+                Node.bad_flags += 1
             self.Surface.fill(self.glo.display.lightgrey)
             pygame.draw.rect(self.Surface, self.glo.display.darkgrey, (
                 1, 1, self.glo.dsp_render_res - 2, self.glo.dsp_render_res - 2),
@@ -222,10 +221,10 @@ class Node():
                                                        centery=self.glo.dsp_render_res / 2,
                                                        centerx=self.glo.dsp_render_res / 2))
         else:
-            if self.isbomb:
-                Node.safebombs -= 1
+            if self.is_bomb:
+                Node.safe_bombs -= 1
             else:
-                Node.badflags -= 1
+                Node.bad_flags -= 1
             self.flagged = False
             self.Surface.fill(self.glo.display.lightgrey)
             pygame.draw.rect(self.Surface, self.glo.display.darkgrey, (
@@ -234,4 +233,6 @@ class Node():
         self.parent.queueref(self)
 
     def __repr__(self):
-        return `self.pos, self.isbomb, self.issetup, self.isrevealed`
+        return str.format("Node(%s) isBomb: %b, isDeployed: %b, isShown: %b",
+                          repr(self.pos), self.is_bomb, self.is_setup,
+                          self.isrevealed)
