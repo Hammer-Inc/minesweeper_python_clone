@@ -1,49 +1,54 @@
 import math
 import random
 
+from color_palete import white, lightgrey, darkgrey, grey
 from main import *
+from manager import Manager
 
 
-@ConfigGLO
-class Manager:
-    def __init__(self, parent):
-        self.parent = parent
-        self.settings = parent.GameOptions
-        self.boolactive = False
+class Handler:
+    resolution = Manager.get_setting("dsp_render_res")
 
-        self.lstNodes = {}
+    def __init__(self, settings):
+        self.settings = settings
+        self.active = False
+        self.nodes = {}
 
-        self.Surface = pygame.Surface((1 + self.settings['width'] * (
-            self.glo.dsp_render_res + 1), 1 + self.settings['height'] * (
-                                           self.glo.dsp_render_res + 1)))
+        display_width = Manager.get_display().width
+        display_height = Manager.get_display().height
+
+        self.surface = pygame.Surface((1 + self.settings['width'] * (
+            self.resolution + 1), 1 + self.settings['height'] * (
+                                           self.resolution + 1)))
         self.rect = pygame.Rect((0, 20), (
-            self.glo.dsp_window_width, self.glo.dsp_window_height - 20))
-        self.glo.display.font.nodeFont = pygame.font.SysFont("Times New Roman",
-                                                             self.glo.dsp_render_res - 2)
-        self.Surface.fill(self.glo.display.white)
-        self.Over = False
-        for x in xrange(0, self.parent.GameOptions['width']):
-            for y in xrange(0, self.parent.GameOptions['height']):
-                self.lstNodes[(x, y)] = Node(self, (x, y))
-        self.scr_dim = self.glo.dsp_window_width, self.glo.dsp_window_height - 20
-        if self.glo.dsp_window_width / self.settings['width'] > (
-                    self.glo.dsp_window_height - 20) / self.settings['height']:
-            self.scr_dim = self.glo.dsp_window_height, self.glo.dsp_window_height - 20
+            display_width, display_height - 20))
+        Manager.get_display().font.nodeFont = pygame.font.SysFont(
+            "Times New Roman",
+            self.resolution - 2)
+        self.surface.fill(white)
+        self.over = False
+        for x in xrange(0, self.settings['width']):
+            for y in xrange(0, self.settings['height']):
+                self.nodes[(x, y)] = Node(self, (x, y))
+        self.scr_dim = display_width, display_height - 20
+        if display_width / self.settings['width'] > (
+                    display_height - 20) / self.settings['height']:
+            self.scr_dim = display_height, display_height - 20
         else:
-            self.scr_dim = self.glo.dsp_window_width, self.glo.dsp_window_width - 20
-            self.scr_dim = self.glo.dsp_window_width, self.glo.dsp_window_width - 20
+            self.scr_dim = display_width, display_width - 20
+            self.scr_dim = display_width, display_width - 20
         self.rect.size = self.scr_dim
-        self.rect.center = self.glo.dsp_window_width / 2, (
-            self.glo.dsp_window_height + 20) / 2
-        self.scrRatio = [1.0 * self.rect.width / self.Surface.get_width(),
-                         1.0 * self.rect.height / self.Surface.get_height()]
+        self.rect.center = display_width / 2, (
+            display_height + 20) / 2
+        self.scrRatio = [1.0 * self.rect.width / self.surface.get_width(),
+                         1.0 * self.rect.height / self.surface.get_height()]
 
     def translate(self, screencoords):
         result = [0, 0]
         result[0] = (1.0 * (screencoords[0] - self.rect.left) / self.scrRatio[
-            0] - 1) / (self.glo.dsp_render_res + 1) - 1
+            0] - 1) / (self.resolution + 1) - 1
         result[1] = (1.0 * (screencoords[1] - self.rect.top) / self.scrRatio[
-            1]) / (self.glo.dsp_render_res + 1) - 1
+            1]) / (self.resolution + 1) - 1
         if (self.rect.width / self.settings['width'] < 10 and self.rect.height /
             self.settings['height']) and (
                             1.0 > result[0] % 1 > .9 or .1 > result[
@@ -53,49 +58,50 @@ class Manager:
         return tuple(result)
 
     def queueref(self, target):
-        self.Surface.blit(*target.update())
+        self.surface.blit(*target.update())
 
     def update(self):
-        if self.Over:
-            self.glo.display.queue(
-                pygame.transform.scale(self.Surface, self.scr_dim), self.rect)
+        if self.over:
+            Manager.get_display().queue(
+                pygame.transform.scale(self.surface, self.scr_dim), self.rect)
             return
         for event in pygame.event.get(pygame.MOUSEBUTTONUP):
             pygame.event.post(event)
             target = self.translate(event.pos)
-            if not target in self.lstNodes: return
+            if target not in self.nodes:
+                return
             if event.button == 1:
-                if not self.boolactive:
+                if not self.active:
                     Node.req_bombs = self.settings['bombs']
-                    Node.req_nodes = len(self.lstNodes)
-                    self.lstNodes[target].setup(True)
-                    self.lstNodes[target].reveal()
-                    self.boolactive = True
+                    Node.req_nodes = len(self.nodes)
+                    self.nodes[target].setup(True)
+                    self.nodes[target].reveal()
+                    self.active = True
                 else:
-                    self.lstNodes[target].reveal()
-            if event.button == 3 and self.boolactive:
-                self.lstNodes[target].flag()
-        # print self.Surface.get_size()
-        self.glo.display.queue(
-            pygame.transform.scale(self.Surface, (self.scr_dim)), self.rect)
-        if self.Over:
-            del self.lstNodes
+                    self.nodes[target].reveal()
+            if event.button == 3 and self.active:
+                self.nodes[target].flag()
+                Manager.get_display().queue(
+                    pygame.transform.scale(self.surface, (self.scr_dim)),
+                    self.rect)
+        if self.over:
+            del self.nodes
 
     def gameover(self, win=False):
-        for x in self.lstNodes:
-            t = self.lstNodes[x]
-            if t.isbomb:
+        for x in self.nodes:
+            t = self.nodes[x]
+            if t.is_bomb:
                 t.reveal(True)
-        self.Over = True
+        self.over = True
         if win:
             endtext = "You Won"
             Colour = "green"
         else:
             endtext = "Game Over"
             Colour = "darkred"
-        self.Surface.blit(*self.glo.display.render(endtext, Colour, "nodefont",
-                                                   centerx=self.Surface.get_width() / 2,
-                                                   centery=self.Surface.get_height() / 2))
+        self.surface.blit(*Manager.get_display().render(endtext, Colour, "nodefont",
+                                                        centerx=self.surface.get_width() / 2,
+                                                        centery=self.surface.get_height() / 2))
         Node.active_nodes = 0
         Node.bomb_nodes = 0
         Node.safe_bombs = 0
@@ -105,7 +111,7 @@ class Manager:
         Node.rev_nodes = 0
 
 
-@ConfigGLO
+
 class Node:
     active_nodes = 0
     bomb_nodes = 0
@@ -118,22 +124,22 @@ class Node:
     def __init__(self, parent, pos):
         self.parent = parent
         self.pos = pos
-        self.rect = pygame.Rect(1 + pos[0] * (self.glo.dsp_render_res + 1),
-                                1 + pos[1] * (self.glo.dsp_render_res + 1),
-                                self.glo.dsp_render_res,
-                                self.glo.dsp_render_res)
+        self.rect = pygame.Rect(1 + pos[0] * (self.parent.resolution + 1),
+                                1 + pos[1] * (self.parent.resolution + 1),
+                                self.parent.resolution,
+                                self.parent.resolution)
         self.is_setup = False
         self.is_bomb = None
         self.isrevealed = False
         self.flagged = False
-        self.Surface = pygame.Surface(self.rect.size)
-        self.Surface.fill(self.glo.display.lightgrey)
-        pygame.draw.rect(self.Surface, self.glo.display.darkgrey, (
-            1, 1, self.glo.dsp_render_res - 2, self.glo.dsp_render_res - 2), 1)
+        self.surface = pygame.Surface(self.rect.size)
+        self.surface.fill(lightgrey)
+        pygame.draw.rect(self.surface, darkgrey, (
+            1, 1, self.parent.resolution - 2, self.parent.resolution - 2), 1)
         self.parent.queueref(self)
 
     def update(self):
-        return self.Surface, self.rect
+        return self.surface, self.rect
 
     def setup(self, is_start=False):
         if self.is_setup: return
@@ -148,30 +154,31 @@ class Node:
             for x in xrange(-1, 2):
                 for y in xrange(-1, 2):
                     target = self.pos[0] + x, self.pos[1] + y
-                    if target not in self.parent.lstNodes:
+                    if target not in self.parent.nodes:
                         continue
-                    target = self.parent.lstNodes[target]
+                    target = self.parent.nodes[target]
                     target.is_bomb = False
         for x in xrange(-1, 2):
             for y in xrange(-1, 2):
                 target = self.pos[0] + x, self.pos[1] + y
-                if not target in self.parent.lstNodes: continue
-                target = self.parent.lstNodes[target]
+                if target not in self.parent.nodes:
+                    continue
+                target = self.parent.nodes[target]
                 target.setup()
 
     def reveal(self, eg=False):
         if self.flagged:
             if not eg: return
             if self.is_bomb:
-                self.Surface.fill((0, 0, 255))
-                self.Surface.blit(
-                    *self.glo.display.render("F", "red", "nodefont",
+                self.surface.fill((0, 0, 255))
+                self.surface.blit(
+                    *Manager.get_display().render("F", "red", "nodefont",
                                              centery=self.glo.dsp_render_res / 2,
                                              centerx=self.glo.dsp_render_res / 2))
                 self.parent.queueref(self)
                 return
         if self.is_bomb:
-            self.Surface.fill((255, 0, 0))
+            self.surface.fill((255, 0, 0))
             self.parent.queueref(self)
             if not eg: return self.parent.gameover()
             return
@@ -185,24 +192,25 @@ class Node:
                 # print x,y
                 if x == 0 and y == 0: continue
                 targetc = self.pos[0] + x, self.pos[1] + y
-                if targetc in self.parent.lstNodes:
-                    target = self.parent.lstNodes[targetc]
-                    if target.isbomb:
+                if targetc in self.parent.nodes:
+                    target = self.parent.nodes[targetc]
+                    if target.is_bomb:
                         nearby += 1
         if not nearby > 0:
             for x in xrange(-1, 2):
                 for y in xrange(-1, 2):
                     targetc = self.pos[0] + x, self.pos[1] + y
-                    if not targetc in self.parent.lstNodes: continue
-                    target = self.parent.lstNodes[targetc]
+                    if targetc not in self.parent.nodes:
+                        continue
+                    target = self.parent.nodes[targetc]
                     if not target.isrevealed:
                         target.reveal()
-        self.Surface.fill(self.glo.display.grey)
+        self.surface.fill(grey)
         if nearby > 0:
-            self.Surface.blit(
-                *self.glo.display.render(str(nearby), "red", "nodefont",
-                                         centery=self.glo.dsp_render_res / 2,
-                                         centerx=self.glo.dsp_render_res / 2))
+            self.surface.blit(
+                *Manager.get_display().render(str(nearby), "red", "nodefont",
+                                         centery=self.parent.resolution / 2,
+                                         centerx=self.parent.resolution / 2))
         self.parent.queueref(self)
 
     def flag(self):
@@ -213,22 +221,22 @@ class Node:
                 Node.safe_bombs += 1
             else:
                 Node.bad_flags += 1
-            self.Surface.fill(self.glo.display.lightgrey)
-            pygame.draw.rect(self.Surface, self.glo.display.darkgrey, (
-                1, 1, self.glo.dsp_render_res - 2, self.glo.dsp_render_res - 2),
+            self.surface.fill(lightgrey)
+            pygame.draw.rect(self.surface, darkgrey, (
+                1, 1, self.parent.resolution - 2, self.parent.resolution - 2),
                              1)
-            self.Surface.blit(*self.glo.display.render("F", "red", "nodefont",
-                                                       centery=self.glo.dsp_render_res / 2,
-                                                       centerx=self.glo.dsp_render_res / 2))
+            self.surface.blit(*Manager.get_display().render("F", "red", "nodefont",
+                                                            centery=self.parent.resolution / 2,
+                                                            centerx=self.parent.resolution / 2))
         else:
             if self.is_bomb:
                 Node.safe_bombs -= 1
             else:
                 Node.bad_flags -= 1
             self.flagged = False
-            self.Surface.fill(self.glo.display.lightgrey)
-            pygame.draw.rect(self.Surface, self.glo.display.darkgrey, (
-                1, 1, self.glo.dsp_render_res - 2, self.glo.dsp_render_res - 2),
+            self.surface.fill(lightgrey)
+            pygame.draw.rect(self.surface, darkgrey, (
+                1, 1, self.parent.resolution - 2, self.parent.resolution - 2),
                              1)
         self.parent.queueref(self)
 

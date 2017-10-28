@@ -1,38 +1,41 @@
 import pygame
-import traceback as tb
 
-all = [
-    'Display'
-]
+from color_palete import ColourFactory
 
 
-class Display():
-    colour = None
+class Display:
+    width = 0
+    height = 0
+    display_mode = None
 
-    def __init__(self, glo):
-        self.g = glo
+    def __init__(self, settings, title, background):
         pygame.init()
-        self.clear()
-        pygame.display.set_caption(self.g.title)
+
+        self.display = None
+        self.lstClean = None
+        self.lstRefresh = None
+
+        self.settings = settings
+        self.title = title
+        self.background = background
+
+        self.width = self.settings("dsp_window_width")
+        self.height = self.settings("dsp_window_height")
+
+        self.display_mode = pygame.FULLSCREEN if self.settings(
+            "dsp_screen_mode") else 0
+
+        self.refresh()
         self.clock = pygame.time.Clock()
-        self.colour = Colours()
         self.font = Fonts()
 
-    def __getattr__(self, name):
-        return self.colour[name]
-
-    def __getitem__(self, name):
-        if hasattr(self.colour, name):
-            return self.colour[name]
-        return 'INVALID_DISPLAY_ATTRIBUTE'
+        pygame.display.set_caption(title)
 
     def fill(self, colour, rect=None):
-        if type(colour) is str:
-            colour = self.colour[colour]
+        colour = ColourFactory.create(colour)
         self.display.fill(colour, rect)
 
     def queue(self, obj, rect, area=None):
-        # convert the rect to the pygame.Rect type if it isnt
         if type(rect) is tuple or type(rect) is list:
             if len(rect) == 2 and type(obj) is pygame.Surface:
                 rect = pygame.Rect(rect, obj.get_size())
@@ -46,34 +49,30 @@ class Display():
                     rect = pygame.Rect(area)
                 else:
                     rect = pygame.Rect((0, 0, 0, 0))
-        if type(obj) is str:
-            obj = self.colour[obj]
-        if type(obj) is tuple:
+
+        if type(obj) is not pygame.Surface:
+            obj = ColourFactory.create(obj)
             surf = pygame.Surface(rect.size)
             surf.fill(obj)
-            obj = surf
-        if type(obj) is pygame.Surface:
-            self.lstRefresh.append([obj, rect, area])
-        else:
-            # if an invalid object is passed as a surface render it anyway
-            self.queue("error", rect)
+        self.lstRefresh.append([obj, rect, area])
 
     def cancel(self):
         self.lstRefresh = []
         self.lstClean = []
 
-    def clear(self):
-        self.display = pygame.display.set_mode(
-            (self.g.dsp_window_width, self.g.dsp_window_height),
-            pygame.FULLSCREEN * self.g.dsp_screen_mode)
-        self.display.fill(self.g.background)
+    def refresh(self):
+        self.display = pygame.display.set_mode((self.width, self.height),
+                                               self.display_mode)
+        self.display.fill(self.background)
+
         pygame.display.update()
         self.lstRefresh = []
         self.lstClean = []
 
     def render(self, text, colour, font, **position):
-        if type(colour) is str: colour = self.colour[colour]
-        txt = self.font[font].render(text, self.g.dsp_use_antialias, colour)
+        colour = ColourFactory.create(colour)
+        txt = self.font[font].render(text, self.settings(
+            "dsp_use_antialias"), colour)
         recttxt = txt.get_rect()
         for key in position:
             exec ('recttxt.' + key + '= position[key]')
@@ -106,44 +105,3 @@ class Fonts():
 
     def __getattr__(self, name):
         return self.default
-
-
-class Colours(object):
-    lightgreen = (100, 255, 100)
-    green = (0, 255, 0)
-    darkgreen = (0, 100, 0)
-
-    white = (255, 255, 255)
-    lightgrey = (200, 200, 200)
-    grey = (100, 100, 100)
-    darkgrey = (50, 50, 50)
-    black = (0, 0, 0)
-
-    lightred = (255, 100, 100)
-    red = (255, 0, 0)
-    darkred = (100, 0, 0)
-
-    lightblue = (100, 100, 255)
-    blue = (0, 0, 255)
-    darkblue = (0, 0, 100)
-
-    lightorange = (255, 200, 100)
-    orange = (255, 165, 0)
-    darkorange = (200, 120, 0)
-
-    error = (100, 50, 200)
-
-    def __getattr__(self, name):
-        exec ('self.' + name + '= self.error')
-        return self.error
-
-    def __setattr__(self, name, value):
-        if name in dir(self) or not type(value) is tuple or not len(
-            value) == 3: return
-        exec ('self.' + name + '=value')
-
-    def __getitem__(self, name):
-        return self.__getattribute__(name)
-
-    def __setitem__(self, name, value):
-        self.__setattribute__(name, value)
