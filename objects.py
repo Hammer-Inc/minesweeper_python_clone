@@ -58,7 +58,7 @@ class Handler:
         return tuple(result)
 
     def queueref(self, target):
-        self.surface.blit(*target.update())
+        self.surface.blit(*target.will_render())
 
     def update(self):
         if self.over:

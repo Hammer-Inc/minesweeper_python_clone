@@ -1,6 +1,6 @@
 from Form.Element import Element
 from Form.TextButton import TextButton
-from color_palete import black, white
+from color_palete import black, grey
 from manager import Manager
 
 
@@ -19,8 +19,7 @@ class MultipleChoice(Element):
         left = self.rect.right + 10
         for index in xrange(0, len(options)):
             text = options[index]
-            button = MCButton(index, text, white, self.on_child_click,
-                              top=top_left[1], left=left)
+            button = MCButton(index, text, grey, top=top_left[1], left=left)
             left += button.rect.size[0] + 10
             self.options.append(button)
 
@@ -30,7 +29,7 @@ class MultipleChoice(Element):
         child.set_enabled(False)
         self.on_change(caller=self, selected=child)
 
-    def update(self):
+    def will_render(self):
         for button in self.options:
             button.update()
         Manager.get_singleton().display.queue(self.surface, self.rect)

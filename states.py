@@ -27,7 +27,7 @@ class State(object):
             while True:
                 self.loop()
                 self.__loop__()
-                Manager.get_display().update()
+                Manager.get_display().will_render()
                 Manager.get_display().clock.tick(Manager.get_setting(
                     "dsp_max_frames"))
                 gc.collect()
@@ -39,7 +39,7 @@ class State(object):
             if self.interface[item]['Open']:
                 clickable = self.interface[item]
                 for btn in clickable['Buttons']:
-                    btn.update()
+                    btn.will_render()
                 for txt in clickable['Text']:
                     Manager.get_display().queue(*txt)
                 for event in pygame.event.get(
@@ -110,13 +110,13 @@ class MainMenu(State):
                                                  centery=210,
                                                  left=10)
 
-        but_start = Form.Button.Button("green", self.new_game, 2, left=0, top=50,
+        but_start = Form.Button.Button("green", self.new_game, left=0, top=50,
                                        width=150, height=40)
-        but_options = Form.Button.Button("orange", self.show_options, 2, left=0,
+        but_options = Form.Button.Button("orange", self.show_options, left=0,
                                          top=120, width=150, height=40)
-        but_exit = Form.Button.Button("red", self.exit, 2, left=0, top=190, width=150,
-                                      height=40)
-        side_bar = Form.Button.Button("darkgrey", lambda me: None, False, left=0,
+        but_exit = Form.Button.Button("red", self.exit, left=0, top=190,
+                                      width=150, height=40)
+        side_bar = Form.Button.Button("darkgrey", lambda me: None, left=0,
                                       top=0, width=150,
                                       height=Manager.get_display().height)
         self.interface["base"] = {'Open': True,
@@ -132,22 +132,22 @@ class MainMenu(State):
         title = Manager.get_display().render('Game Settings', "lightorange",
                                              "menu_title", top=50, centerx=250)
 
-        opside_bar = Form.Button.Button("darkorange", lambda me: None, False,
-                                        left=150,
+        opside_bar = Form.Button.Button("darkorange", lambda me: None, left=150,
                                         top=0, width=200,
                                         height=Manager.get_display().height)
         mclevel = Form.SelectButton.MultipleChoice(self.on_level_change, 'Difficulty',
                                                    self.game_level_presets.keys(), 0,
                                                    (175, 100))
-        but_width = Form.TextButton.TextButton("Width", "lightorange", self.cgs, 1, left=175,
-                                               top=mclevel.rect.bottom + 20, width=30,
-                                               height=10)
-        but_height = Form.TextButton.TextButton("Height", "lightorange", self.cgs, 1,
-                                                left=205, top=mclevel.rect.bottom + 20,
+        but_width = Form.TextButton.TextButton("Width", "lightorange", left=175,
+                                               top=mclevel.rect.bottom + 20,
+                                               width=30, height=10)
+        but_height = Form.TextButton.TextButton("Height", "lightorange",
+                                                left=205,
+                                                top=mclevel.rect.bottom + 20,
                                                 width=30, height=10)
-        but_bombs = Form.TextButton.TextButton("Bombs", "lightorange", self.cgs, 1, left=235,
-                                               top=mclevel.rect.bottom + 20, width=30,
-                                               height=10)
+        but_bombs = Form.TextButton.TextButton("Bombs", "lightorange", left=235,
+                                               top=mclevel.rect.bottom + 20,
+                                               width=30, height=10)
         self.interface['opmenu1'] = {'Open': False, 'Text': [title],
                                      'Buttons': [opside_bar, mclevel, but_width,
                                                  but_height, but_bombs],
@@ -203,10 +203,10 @@ class GameUI(State):
                 'height']`, "white", "uitext", centery=10,
             left=170 + textbombs[1].width)
 
-        topbar = Form.Button.Button("darkgrey", lambda me: None, False, left=0, top=0,
+        topbar = Form.Button.Button("darkgrey", lambda me: None, left=0, top=0,
                                     width=Manager.get_display().width,
                                     height=20)
-        butMenu = Form.Button.Button("lightgrey", self.show_menu, 2, left=0, top=0,
+        butMenu = Form.Button.Button("lightgrey", self.show_menu, left=0, top=0,
                                      width=150, height=20)
 
         self.interface["Base"] = {'Open': True,
@@ -218,9 +218,9 @@ class GameUI(State):
                                                 centery=70,
                                                 left=10)
 
-        butExit = Form.Button.Button("red", self.exit, False, left=0, top=50,
+        butExit = Form.Button.Button("red", self.exit, left=0, top=50,
                                      width=150, height=40)
-        sidebar = Form.Button.Button("grey", lambda me: None, False, left=0, top=20,
+        sidebar = Form.Button.Button("grey", lambda me: None, left=0, top=20,
                                      width=150,
                                      height=Manager.get_display().height - 20)
         self.interface["Paused"] = {'Open': False, 'Text': [textExit],
@@ -231,7 +231,7 @@ class GameUI(State):
 
     def loop(self):
         if not self.interface['Paused']['Open']:
-            self.handler.update()
+            self.handler.will_render()
 
     def show_menu(self, caller=None):
         self.interface['Paused']['Open'] = True
